@@ -230,169 +230,64 @@ chirality) for back-compat with the spot-check cell later.
 
 ---
 
-## 11. Basic structure viewer widget
+## 11. Protein structure viewer
 
-**Why**: Start small — just render the PDB as an anywidget. We'll layer coloring and
-the tooltip onto this same class in the next two prompts.
+**Why**: Get the PDB on screen as an anywidget so we have something to iterate on.
+Keep this prompt deliberately high-level — the agent will pick a sensible default
+representation (cartoon, ligand as ball-and-stick) and we'll layer interactivity on
+in the next two prompts.
 
 **Prompt**:
 
 ```text
-Define an `anywidget.AnyWidget` subclass `ProteinStructureViewer` with a single
-synced trait `pdb_text = traitlets.Unicode("")`. The `_esm` should lazy-load
-3Dmol.js v2.1.0 from `https://cdn.jsdelivr.net/npm/3dmol@2.1.0/build/3Dmol-min.js`
-only if `globalThis.$3Dmol` is not already present, then create a viewer inside a
-100% × 520px host div with a white background. Render the protein with a uniform
-gray cartoon (`#bfbfbf`, opacity 0.95), and display non-water HETATMs (selector
-`{ hetflag: true, not: { resn: ["HOH", "WAT", "H2O", "DOD"] } }`) as ball-and-stick
-with `colorscheme: "Jmol"` (stick radius 0.2, sphere scale 0.25). Re-zoom and
-re-render on `change:pdb_text`. Also add a quick init/show cell that constructs
-`structure_viewer = ProteinStructureViewer(pdb_text=pdb_text)` and renders it with
-`mo.ui.anywidget(structure_viewer)` so we can confirm the structure loads before
-adding any coloring.
+I want you to create a protein structure viewer in my notebook to visualize the
+PDB file at `data/ired-novartis/7OG3.pdb`. Build it as an anywidget so we can
+layer interactivity onto it later.
 ```
 
 ---
 
-## 12. Add surface coloring to the viewer
+## 12. Color the surface by mutational effect
 
-**Why**: Project the per-residue effect maps onto the structure as a Molecular
-Surface, with two color modes (`conversion`/`chirality`) and two summary modes
-(`mean`/`max`).
+**Why**: Now that the structure is on screen, drive its coloring from the
+per-position effect maps and let the audience switch metric + summary live. The
+agent will naturally add the two dropdowns, a small legend, and the plumbing that
+pushes dropdown values into the widget — they fall out of the request.
 
 **Prompt**:
 
 ```text
-Extend `ProteinStructureViewer` with four synced Unicode traits —
-`effects_conversion_mean`, `effects_conversion_max`, `effects_chirality_mean`,
-`effects_chirality_max` (each defaulting to `"{}"`) — plus
-`color_mode` (default `"conversion"`) and `aggregation_mode` (default `"mean"`).
-In the JS, pick the active effect map from those two traits, then add a Molecular
-Surface (`SurfaceType.MS`, opacity 0.92) restricted to non-water atoms, and recolor
-the cartoon, both using a per-residue `colorfunc` that normalizes each value into
-[min, max] of the active map and runs it through one of two 5-stop color ramps.
-Conversion: blue → muted-blue → white → orange → red with t-stops 0/0.35/0.5/0.7/1.0
-and RGB stops [49,54,149], [69,117,180], [247,247,247], [253,174,97], [165,0,38].
-Chirality: purple → light-purple → white → light-orange → orange with the same
-t-stops and RGB stops [94,60,153], [178,171,210], [247,247,247], [253,184,99],
-[230,97,1]. Residues missing from the active map render neutral gray `#d2d2d2`.
-Re-run the recolor on any change to `color_mode`, `aggregation_mode`, or any of
-the four effect-map traits, and rebuild the cartoon + surface from scratch on each
-recolor so the colors stay in sync.
+Now color the protein surface by mutational effect at each position. I want two
+dropdowns — one to switch between `conversion` and `chirality`, and one to switch
+between `mean` and `max` summary — and the surface should recolor accordingly.
+The per-residue values come from `effects_conversion_mean_json`,
+`effects_conversion_max_json`, `effects_chirality_mean_json`, and
+`effects_chirality_max_json` (JSON strings, residue number → float, already in
+scope). Residues with no measurement should stay neutral gray. Add a small legend
+next to the dropdowns that reflects the current selection and shows the active
+map's min and max.
 ```
 
 ---
 
-## 13. Add a click tooltip to the viewer
+## 13. Click a residue to see its values
 
-**Why**: Lets the audience inspect raw values at any residue.
-
-**Prompt**:
-
-```text
-Extend `ProteinStructureViewer` with a click tooltip. Append a positioned div to the
-host element (absolute, `rgba(20,20,20,0.9)` background, white text, 6×8px padding,
-6px radius, 12px sans-serif, z-index 1000, hidden by default), and make atoms
-clickable via `viewer.setClickable({}, true, ...)`. On atom click, populate the
-tooltip with bold rows for `Chain`, `Residue`, `WT AA` (single-letter from a JS
-`AA3_TO_AA1` mirror of the Python mapping, shown with the original 3-letter resn in
-parentheses), `Mode`, `Summary`, and `Value` (4 decimals; show `"NA"` for residues
-missing from the active map). Position the tooltip near the click point inside the
-host, clamped within its bounds. Hide it on background canvas clicks: bind a click
-handler on the canvas once (guarded with a dataset flag) that uses a single-tick
-`setTimeout` together with a `let atomClickedInCycle = false` flag to distinguish
-atom clicks from background clicks in the same event cycle. Also hide the tooltip
-whenever `color_mode` or `aggregation_mode` changes.
-```
-
----
-
-## 14. Coloring dropdowns
-
-**Why**: Surface the two viewer modes as marimo UI controls.
+**Why**: Inspect raw mutational effect at any residue, surfacing both mean and max
+so the audience can compare average vs best-case behavior at the same site.
 
 **Prompt**:
 
 ```text
-Add `color_mode_dropdown = mo.ui.dropdown(options=["conversion", "chirality"], value="conversion", label="Color mode")`
-and `aggregation_mode_dropdown = mo.ui.dropdown(options=["mean", "max"], value="mean", label="Mutational effect summary")`,
-then display them stacked with `mo.vstack`.
-```
-
----
-
-## 15. Color legend
-
-**Why**: Reactive markdown legend that reflects the currently selected mode and
-summary, with the active map's min/max.
-
-**Prompt**:
-
-```text
-Render a reactive markdown color legend that reads `color_mode_dropdown.value` and
-`aggregation_mode_dropdown.value`, picks the matching JSON effect map (mean/max ×
-conversion/chirality), and reports — as a `### Color legend ({mode}, {aggregation})`
-header followed by bullets — the low color (blue for conversion, purple for
-chirality), the high color (red / orange), the corresponding metric phrase
-("average" or "maximum" + "conversion (mean column)" or "r_enantiomeric_excess"),
-the active map's `vmin` and `vmax` to 4 decimals, and a note that gray residues
-have no measurement.
-```
-
----
-
-## 16. Initialize the structure viewer
-
-**Why**: Long-lived viewer instance so dropdown changes don't reset camera state.
-
-**Prompt**:
-
-```text
-Construct `structure_viewer = ProteinStructureViewer(...)` passing `pdb_text`,
-`pdb_chain`, the four `effects_*_json` strings, `color_mode="conversion"`, and
-`aggregation_mode="mean"`. Keep this cell separate from the cell that displays the
-viewer so dropdown updates don't tear down its camera or click handlers.
-```
-
----
-
-## 17. Show the structure viewer wired to the dropdowns
-
-**Why**: Pushes dropdown values into the viewer and renders it.
-
-**Prompt**:
-
-```text
-Set `structure_viewer.color_mode = color_mode_dropdown.value` and
-`structure_viewer.aggregation_mode = aggregation_mode_dropdown.value`, then render
-the viewer with `mo.ui.anywidget(structure_viewer)`.
+Let me click on a residue in the structure and see the mutational effect at that
+position — both the mean and the max — alongside its chain, residue number, and
+wild-type amino acid. Clicking the empty background should dismiss the tooltip.
 ```
 
 At this point you can demo the interactions live:
 
 - Toggle **Color mode**: `conversion` → `chirality`.
 - Toggle **Mutational effect summary**: `mean` → `max`.
-- Click a residue to show the tooltip; click whitespace to dismiss it.
-
----
-
-## 18. Spot-check verification
-
-**Why**: Final consistency check between the JSON-encoded effect maps and the
-underlying Polars summary tables.
-
-**Prompt**:
-
-```text
-Compare the JSON-encoded effect maps against the Polars summary tables for residue
-numbers `[42, 111, 116]`: for each `pdb_residue`, compute
-`assay_position = pdb_residue - pdb_residue_offset`, look up the matching row in
-`df_position_effect_conversion` (`avg_conversion`) and `df_position_effect_chirality`
-(`avg_chirality`), and compare to `json.loads(effects_conversion_json)[str(pdb_residue)]`
-and `json.loads(effects_chirality_json)[str(pdb_residue)]`. Display the side-by-side
-comparison as a Polars DataFrame with columns `pdb_residue`, `assay_position`,
-`conversion_avg_table`, `conversion_json`, `chirality_avg_table`, `chirality_json`.
-```
+- Click a residue to read the tooltip; click whitespace to dismiss it.
 
 ---
 
@@ -425,16 +320,18 @@ Use this after each cell or group of cells executes successfully.
 - "Then we project per-position summaries into structure-space."
 
 ### 15:00–19:00 — Interactive Structure Analysis
-- After prompts 11–17 land. Progressive widget reveal is a good moment to highlight
-  agentic iteration: structure → coloring → tooltip.
-- Demo interactions live (see prompt 17).
+- After prompts 11–13 land. The three prompts deliberately mirror how the widget
+  was originally built — a great moment to highlight agentic iteration: structure
+  on screen → color it by mutational effect → click to inspect.
+- Demo interactions live (see end of prompt 13).
 - "Now we can compare objective-specific structural patterns interactively."
 - "The same scaffold supports both average and best-case mutational perspectives."
 
 ### 19:00–20:00 — Close
-- After prompt 18 lands.
-- "Spot checks confirm map values match the underlying aggregated tables."
-- "This gives confidence that structural colors are faithful to assay data."
+- Wrap up verbally; no final prompt to run.
+- "We went from two assay tables to a structure-aware, interactive view in
+  thirteen prompts."
+- "Every visualization is faithful to the same underlying mutational tables."
 
 ## Audience-Facing Key Messages
 
@@ -455,9 +352,10 @@ Use this after each cell or group of cells executes successfully.
 - **Cell name drift / `NameError`**: the most likely cause is that an earlier cell
   did not produce the expected variable name. Re-issue the earlier prompt and
   explicitly call out the missing variable name from this doc.
-- **Stale widget**: re-run, in order, prompts 11–13 (widget definition), 16
-  (init), 17 (show).
-- **Controls not propagating**: re-run prompts 14 (dropdowns), 15 (legend), 17 (show).
+- **Stale or broken widget**: re-issue prompt 11, then prompts 12 and 13 in order
+  to layer back the coloring and tooltip.
+- **Controls not propagating**: re-issue prompt 12 — the dropdowns, legend, and
+  viewer plumbing are produced together.
 - **Total reset**: restart the marimo kernel and re-run the prompts in order from 1.
 - **Reference**: the original `hackathon-demo.py` (or the `.reference.py` copy from
   pre-demo setup) is the source of truth for any cell whose output you want to
