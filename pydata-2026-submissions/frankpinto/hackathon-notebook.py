@@ -60,13 +60,12 @@ def scope_picker(mo):
         value="United Kingdom",
         label="Region",
     )
-    scope_picker
     return (scope_picker,)
 
 
 @app.cell(hide_code=True)
 def load_and_clean(Path, pl):
-    path = Path("data/OnlineRetail.csv")
+    path = Path(__file__).resolve().parent / "data" / "OnlineRetail.csv"
     raw = pl.read_csv(
         path,
         infer_schema_length=5000,
@@ -91,7 +90,6 @@ def load_and_clean(Path, pl):
             pl.col("UnitPrice").is_not_null(),
         )
     )
-    df_clean
     return (df_clean,)
 
 
@@ -115,7 +113,6 @@ def monthly_series(df_clean, pl, scope_picker):
     df_monthly = month_grid.join(df_m, on="month", how="left").with_columns(
         pl.col("revenue").fill_null(0.0)
     )
-    df_monthly
     return (df_monthly,)
 
 
