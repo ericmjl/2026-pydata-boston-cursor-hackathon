@@ -4,6 +4,23 @@ Welcome! This repository is the starting point for participants in the **2026 Py
 
 This guide helps you get your machine ready and confirms that Cursor can connect to a running Marimo notebook.
 
+## Maintainer demos (paired notebook + chat)
+
+This repo also includes reference marimo apps and transcripts from building them:
+
+- **Dry run (first pass):** [`demos/dry-run/hackathon-demo.py`](demos/dry-run/hackathon-demo.py) with [`demos/dry-run/cursor-chat-f20cbaac.md`](demos/dry-run/cursor-chat-f20cbaac.md) — meta demo / golden-path scaffolding session.
+- **Live run (final IRED analysis):** [`demos/live-run/demo.py`](demos/live-run/demo.py) with [`demos/live-run/session-log.md`](demos/live-run/session-log.md) — interactive Novartis IRED campaign analysis through commit of the final notebook.
+
+To open a reference app from the repository root (paths assume `data/` at the repo root):
+
+```bash
+uvx marimo edit --sandbox --no-token demos/dry-run/hackathon-demo.py
+```
+
+```bash
+uvx marimo edit --sandbox --no-token demos/live-run/demo.py
+```
+
 ## Before the Hackathon
 
 Please make sure you have the following:

@@ -26,7 +26,9 @@ def notebook_imports():
     import plotly.graph_objects as go
     import traitlets
 
-    return Path, anywidget, go, json, mo, pl, traitlets
+    repo_root = Path(__file__).resolve().parent.parent.parent
+
+    return Path, anywidget, go, json, mo, pl, repo_root, traitlets
 
 
 @app.cell(hide_code=True)
@@ -56,8 +58,8 @@ def data_loading_markdown(mo):
 
 
 @app.cell(hide_code=True)
-def load_conversion_table(Path, pl):
-    conversion_table_path = Path("data/ired-novartis/cs1c02786_si_002.csv")
+def load_conversion_table(Path, pl, repo_root):
+    conversion_table_path = repo_root / "data/ired-novartis/cs1c02786_si_002.csv"
     df_conversion = pl.read_csv(conversion_table_path)
     df_conversion
     return (df_conversion,)
@@ -74,8 +76,8 @@ def chirality_loading_markdown(mo):
 
 
 @app.cell(hide_code=True)
-def load_chirality_table(Path, pl):
-    chirality_table_path = Path("data/ired-novartis/cs1c02786_si_003.csv")
+def load_chirality_table(Path, pl, repo_root):
+    chirality_table_path = repo_root / "data/ired-novartis/cs1c02786_si_003.csv"
     df_chirality = pl.read_csv(chirality_table_path)
     df_chirality
     return (df_chirality,)
@@ -444,6 +446,7 @@ def pdb_sequence_validation_and_effect_maps(
     json,
     mo,
     pl,
+    repo_root,
 ):
     AA3_TO_AA1 = {
         "ALA": "A",
@@ -503,7 +506,7 @@ def pdb_sequence_validation_and_effect_maps(
         return out
 
 
-    pdb_path = Path("data/ired-novartis/7OG3.pdb")
+    pdb_path = repo_root / "data/ired-novartis/7OG3.pdb"
     pdb_text = pdb_path.read_text()
     pdb_chain = "A"
     pdb_residues = parse_pdb_chain_residues(pdb_text, pdb_chain)

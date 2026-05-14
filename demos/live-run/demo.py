@@ -26,12 +26,14 @@ def imports():
     import traitlets
     from pathlib import Path
 
-    return Path, anywidget, mo, pl, px, traitlets
+    repo_root = Path(__file__).resolve().parent.parent.parent
+
+    return Path, anywidget, mo, pl, px, repo_root, traitlets
 
 
 @app.cell(hide_code=True)
-def load_data(Path, pl):
-    data_dir = Path("data/ired-novartis")
+def load_data(Path, pl, repo_root):
+    data_dir = repo_root / "data/ired-novartis"
 
     activity_df = (
         pl.read_csv(data_dir / "cs1c02786_si_002.csv")
@@ -439,6 +441,7 @@ def structure_viewer(
     Path,
     activity_by_pos,
     property_dropdown,
+    repo_root,
     selectivity_by_pos,
     stat_dropdown,
 ):
@@ -458,7 +461,7 @@ def structure_viewer(
         if row[_stat] is not None
     }
 
-    pdb_text = Path("data/ired-novartis/7OG3.pdb").read_text()
+    pdb_text = (repo_root / "data/ired-novartis/7OG3.pdb").read_text()
     viewer = MolViewer(
         pdb_data=pdb_text,
         residue_values=json.dumps(residue_map),
