@@ -64,8 +64,40 @@ def scope_picker(mo):
 
 
 @app.cell(hide_code=True)
-def load_and_clean(Path, pl):
-    path = Path(__file__).resolve().parent / "data" / "OnlineRetail.csv"
+def cleaned_data_context_md(mo):
+    mo.md(r"""
+    ## Cleaned line-level data
+
+    Skimming the **row-level** table after light cleaning is useful because cancellations (`InvoiceNo` starting with `C`) and bad timestamps silently distort aggregates. Here you can spot obvious spikes, returns-heavy rows, and whether the UK filter (when selected below) leaves enough volume for a stable monthly series.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def load_and_clean(mo, Path, pl):
+    candidates = []
+    nb_dir = getattr(mo, "notebook_dir", None)
+    if callable(nb_dir):
+        try:
+            candidates.append(Path(nb_dir()) / "data" / "OnlineRetail.csv")
+        except Exception:
+            pass
+    try:
+        candidates.append(Path(__file__).resolve().parent / "data" / "OnlineRetail.csv")
+    except NameError:
+        pass
+    candidates.extend(
+        [
+            Path("data") / "OnlineRetail.csv",
+            Path("pydata-2026-submissions") / "frankpinto" / "data" / "OnlineRetail.csv",
+        ]
+    )
+    path = next((p for p in candidates if p.exists()), None)
+    if path is None:
+        raise FileNotFoundError(
+            "OnlineRetail.csv not found. Tried: " + ", ".join(str(p) for p in candidates)
+        )
+
     raw = pl.read_csv(
         path,
         infer_schema_length=5000,
@@ -91,6 +123,16 @@ def load_and_clean(Path, pl):
         )
     )
     return (df_clean,)
+
+
+@app.cell(hide_code=True)
+def monthly_series_context_md(mo):
+    mo.md(r"""
+    ## Monthly revenue (chosen region)
+
+    **Why this view matters:** VAT hits demand and/or list prices at **monthly** business cadence, so we aggregate to calendar months before any rolling average. The filled month grid makes missing months explicit (zeros) instead of silently connecting points across gaps—important when comparing a model line to **real** seasonality.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -175,13 +217,15 @@ def counterfactual_model(df_monthly, pl, scope_picker):
         L_curr = None
         for row in months_sorted.iter_rows(named=True):
             m_raw = row["month"]
+            rev = float(row["revenue"])
             if isinstance(m_raw, __import__("datetime").datetime):
                 m_py = m_raw.replace(tzinfo=None)
             else:
                 m_py = __import__("datetime").datetime.fromisoformat(str(m_raw)[:19])
             s = float(row["seasonal_index"])
             if m_py < jan2011:
-                cf_vals.append(float("nan"))
+                # Show year-one actuals on the counterfactual trace so the chart spans the full first year.
+                cf_vals.append(rev)
             elif m_py.year == jan2011.year and m_py.month == jan2011.month:
                 L_curr = L * (1.0 + g)
                 cf_vals.append(L_curr * s)
@@ -192,6 +236,16 @@ def counterfactual_model(df_monthly, pl, scope_picker):
         df_chart = months_sorted.with_columns(pl.Series("counterfactual", cf_vals))
 
     return df_chart, g, mean_y1
+
+
+@app.cell(hide_code=True)
+def diagnostics_context_md(mo):
+    mo.md(r"""
+    ## Model diagnostics
+
+    The fitted **monthly growth** and year-one **average level** summarize what the counterfactual “believes” about trend after stripping seasonal indices from the smoothed series. These numbers are easy to sanity-check: if growth looks absurd, the VAT story is probably not what’s moving the needle.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -208,10 +262,34 @@ def validation_summary(df_chart, df_clean, g, mean_y1, mo):
 
 
 @app.cell(hide_code=True)
+def chart_context_md(mo):
+    mo.md(r"""
+    ## Actual vs counterfactual (full sample including year one)
+
+    **Why this chart is the payoff:** you see **recorded revenue** against a **counterfactual** built only from early-year seasonality and smoothed growth—so divergences after the VAT line are easier to interpret as “model vs reality,” not as a second y-axis trick. The **3-month rolling average** shows the signal the model actually fitted (less month-to-month noise). The shaded **first year** band marks the window used to estimate seasonality and `g`, so you can judge whether post-VAT months sit inside a plausible continuation or not.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def plot_actual_vs_cf(df_chart, go, scope_picker):
-    vat_day = __import__("datetime").datetime(2011, 1, 4)
-    xs = df_chart["month"].to_list()
-    ys = df_chart["revenue"].to_list()
+    import datetime as dt
+
+    vat_day = dt.datetime(2011, 1, 4)
+    dfc = df_chart.sort("month")
+    xs = dfc["month"].to_list()
+    ys = dfc["revenue"].to_list()
+    rolls = dfc["roll3"].to_list()
+
+    y1 = dfc.head(12)
+    x0 = y1["month"][0]
+    x1 = y1["month"][-1]
+    if isinstance(x0, dt.datetime):
+        x0p, x1p = x0, x1
+    else:
+        x0p = dt.datetime.fromisoformat(str(x0)[:19])
+        x1p = dt.datetime.fromisoformat(str(x1)[:19])
+
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
@@ -221,16 +299,35 @@ def plot_actual_vs_cf(df_chart, go, scope_picker):
             name="Actual revenue",
         )
     )
+    fig.add_trace(
+        go.Scatter(
+            x=xs,
+            y=rolls,
+            mode="lines+markers",
+            name="3-month rolling avg (actual)",
+            line=dict(color="#636EFA", dash="dot"),
+        )
+    )
     if scope_picker.value == "United Kingdom":
         fig.add_trace(
             go.Scatter(
                 x=xs,
-                y=df_chart["counterfactual"].to_list(),
+                y=dfc["counterfactual"].to_list(),
                 mode="lines+markers",
                 name="Counterfactual (growth + seasonality)",
-                line=dict(dash="dash"),
+                line=dict(dash="dash", color="#EF553B"),
             )
         )
+    fig.add_vrect(
+        x0=x0p,
+        x1=x1p,
+        fillcolor="LightGreen",
+        opacity=0.12,
+        layer="below",
+        line_width=0,
+        annotation_text="Year 1 (fit window)",
+        annotation_position="top left",
+    )
     fig.add_shape(
         type="line",
         x0=vat_day,
@@ -252,7 +349,7 @@ def plot_actual_vs_cf(df_chart, go, scope_picker):
         yanchor="bottom",
     )
     fig.update_layout(
-        title="Monthly revenue: actual vs model benchmark",
+        title="Monthly revenue: actual vs model benchmark (year one included)",
         xaxis_title="Month",
         yaxis_title="Revenue (£)",
         hovermode="x unified",
