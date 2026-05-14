@@ -1,0 +1,9 @@
+{
+  "title": "Visualize the effect of an increased VAT",
+  "description": "VAT increased in the UK in December 2010 from 17.5% to 20%. This notebook shows how it affected the B2B retailer in the dataset.",
+  "displayName": "The VAT Effect",
+  "tags": ["retail", "wholesale", "macroeconomics"],
+  "collaborators": [
+    { "displayName": "Frank P.", "githubHandle": "frankpinto" }
+  ]
+}
