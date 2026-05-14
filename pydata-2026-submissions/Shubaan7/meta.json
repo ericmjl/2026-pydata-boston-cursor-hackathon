@@ -1,0 +1,7 @@
+{
+  "title": "Are You Safe Near Your T Stop? Boston Crime x MBTA Analysis",
+  "description": "Matched 2023-present Boston PD crime data to every MBTA subway stop using haversine distance. Counted crimes within 400m of each stop to reveal which T stops have the highest crime density. Fields Corner tops the list with 11,500+ incidents — 60% more than #2 Chinatown.",
+  "displayName": "Shubaan Nachiappan Meyyappan",
+  "tags": ["boston", "mbta", "crime", "geospatial"],
+  "collaborators": []
+}
