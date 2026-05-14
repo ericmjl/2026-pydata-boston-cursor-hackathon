@@ -21,6 +21,8 @@ uvx marimo edit --sandbox --no-token demos/dry-run/hackathon-demo.py
 uvx marimo edit --sandbox --no-token demos/live-run/demo.py
 ```
 
+If you followed an old bookmark to a `docs/` path for these transcripts, they now live next to the notebooks under [`demos/dry-run/`](demos/dry-run/) and [`demos/live-run/`](demos/live-run/) (same pairing as above). See [`demos/README.md`](demos/README.md) for a compact index.
+
 ## Before the Hackathon
 
 Please make sure you have the following:
