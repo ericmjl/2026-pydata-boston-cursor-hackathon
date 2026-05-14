@@ -1,0 +1,19 @@
+{
+  "title": "MBTA Transit Equity & Civic Improvement Dashboard",
+  "description": "A multilingual, AI-powered civic tool that exposes transit inequity in Boston using live MBTA data. Features include ghost bus detection, pain index scoring, RAG-based policy fact-checking against MBTA's own documents, a conversational transit agent ('Ask the T'), equity scorecards overlaid with Census demographics, and an auto-generated open letter to the MBTA Board. Built with Claude API, optional LangGraph/MCP paths, and RAG. Supports 7 languages including Haitian Creole and Arabic (RTL).",
+  "author": "manisha002307735",
+  "tags": [
+    "transit-equity",
+    "MBTA",
+    "Boston",
+    "civic-tech",
+    "LLM",
+    "RAG",
+    "MCP",
+    "LangGraph",
+    "multilingual",
+    "marimo",
+    "real-time-data",
+    "accessibility"
+  ]
+}
